@@ -5,6 +5,7 @@ import android.annotation.SuppressLint;
 import android.net.Uri;
 import android.graphics.Bitmap;
 import android.os.Build;
+import android.view.View;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.JsResult;
@@ -34,6 +35,16 @@ class RNWebView extends WebView implements LifecycleEventListener {
     private String currentUrl = "";
     private String shouldOverrideUrlLoadingUrl = "";
 
+    private View parentForDispatchId = null;
+    public void setParentForDispatchId(View parent) {
+        this.parentForDispatchId = parent;
+    }
+
+    private WebViewClient additionalWebViewClient = null;
+    public void setAdditionalWebViewClient(WebViewClient additionalWebViewClient) {
+        this.additionalWebViewClient = additionalWebViewClient;
+    }
+
     protected class EventWebClient extends WebViewClient {
         public boolean shouldOverrideUrlLoading(WebView view, String url){
             int navigationType = 0;
@@ -43,23 +54,43 @@ class RNWebView extends WebView implements LifecycleEventListener {
             }
 
             shouldOverrideUrlLoadingUrl = url;
-            mEventDispatcher.dispatchEvent(new ShouldOverrideUrlLoadingEvent(getId(), SystemClock.nanoTime(), url, navigationType));
+            mEventDispatcher.dispatchEvent(
+                    new ShouldOverrideUrlLoadingEvent(
+                            parentForDispatchId.getId(),
+                            SystemClock.nanoTime(),
+                            url,
+                            navigationType
+                    )
+            );
 
             return true;
         }
 
         public void onPageFinished(WebView view, String url) {
-            mEventDispatcher.dispatchEvent(new NavigationStateChangeEvent(getId(), SystemClock.nanoTime(), view.getTitle(), false, url, view.canGoBack(), view.canGoForward()));
+            NavigationStateChangeEvent navStateChangeEvent = new NavigationStateChangeEvent(
+                    parentForDispatchId.getId(),
+                    SystemClock.nanoTime(),
+                    view.getTitle(),
+                    false,
+                    url,
+                    view.canGoBack(),
+                    view.canGoForward()
+            );
+            mEventDispatcher.dispatchEvent(navStateChangeEvent);
 
             currentUrl = url;
 
             if(RNWebView.this.getInjectedJavaScript() != null) {
                 view.loadUrl("javascript:(function() {\n" + RNWebView.this.getInjectedJavaScript() + ";\n})();");
             }
+
+            if (additionalWebViewClient != null) {
+                additionalWebViewClient.onPageFinished(view, url);
+            }
         }
 
         public void onPageStarted(WebView view, String url, Bitmap favicon) {
-            mEventDispatcher.dispatchEvent(new NavigationStateChangeEvent(getId(), SystemClock.nanoTime(), view.getTitle(), true, url, view.canGoBack(), view.canGoForward()));
+            mEventDispatcher.dispatchEvent(new NavigationStateChangeEvent(parentForDispatchId.getId(), SystemClock.nanoTime(), view.getTitle(), true, url, view.canGoBack(), view.canGoForward()));
         }
     }
 
@@ -191,6 +222,6 @@ class RNWebView extends WebView implements LifecycleEventListener {
 
     @JavascriptInterface
      public void postMessage(String jsParamaters) {
-        mEventDispatcher.dispatchEvent(new MessageEvent(getId(), jsParamaters));
+        mEventDispatcher.dispatchEvent(new MessageEvent(parentForDispatchId.getId(), jsParamaters));
     }
 }

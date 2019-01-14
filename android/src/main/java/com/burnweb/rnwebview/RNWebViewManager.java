@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import android.os.Build;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.view.ViewGroup.LayoutParams;
 import android.webkit.WebSettings;
 import android.webkit.CookieManager;
@@ -23,7 +24,7 @@ import com.facebook.react.common.annotations.VisibleForTesting;
 import org.json.JSONObject;
 import org.json.JSONException;
 
-public class RNWebViewManager extends SimpleViewManager<RNWebView> {
+public class RNWebViewManager extends SimpleViewManager<WebViewWithSwipeRefresh> {
 
     public static final int GO_BACK = 1;
     public static final int GO_FORWARD = 2;
@@ -48,7 +49,7 @@ public class RNWebViewManager extends SimpleViewManager<RNWebView> {
     }
 
     @Override
-    public RNWebView createViewInstance(ThemedReactContext context) {
+    public WebViewWithSwipeRefresh createViewInstance(ThemedReactContext context) {
         RNWebView rnwv = new RNWebView(this, context);
 
         // Fixes broken full-screen modals/galleries due to body
@@ -63,7 +64,7 @@ public class RNWebViewManager extends SimpleViewManager<RNWebView> {
             CookieManager.getInstance().setAcceptThirdPartyCookies(rnwv, true);
         }
 
-        return rnwv;
+        return new WebViewWithSwipeRefresh(context, rnwv);
     }
 
     public void setPackage(RNWebViewPackage aPackage) {
@@ -75,12 +76,13 @@ public class RNWebViewManager extends SimpleViewManager<RNWebView> {
     }
 
     @ReactProp(name = "allowUrlRedirect", defaultBoolean = false)
-    public void setAllowUrlRedirect(RNWebView view, boolean allowUrlRedirect) {
-        view.setAllowUrlRedirect(allowUrlRedirect);
+    public void setAllowUrlRedirect(WebViewWithSwipeRefresh view, boolean allowUrlRedirect) {
+        RNWebView webView = view.getWebView();
+        webView.setAllowUrlRedirect(allowUrlRedirect);
     }
 
     @ReactProp(name = "disableCookies", defaultBoolean = false)
-    public void setDisableCookies(RNWebView view, boolean disableCookies) {
+    public void setDisableCookies(WebViewWithSwipeRefresh view, boolean disableCookies) {
         if (disableCookies) {
             CookieManager.getInstance().setAcceptCookie(false);
             CookieManager.getInstance().setAcceptFileSchemeCookies(false);
@@ -91,47 +93,53 @@ public class RNWebViewManager extends SimpleViewManager<RNWebView> {
     }
 
     @ReactProp(name = "disablePlugins", defaultBoolean = false)
-    public void setDisablePlugins(RNWebView view, boolean disablePlugins) {
+    public void setDisablePlugins(WebViewWithSwipeRefresh view, boolean disablePlugins) {
+        RNWebView webView = view.getWebView();
         if (disablePlugins) {
-            view.getSettings().setPluginState(WebSettings.PluginState.OFF);
+            webView.getSettings().setPluginState(WebSettings.PluginState.OFF);
         } else {
-            view.getSettings().setPluginState(WebSettings.PluginState.ON);
+            webView.getSettings().setPluginState(WebSettings.PluginState.ON);
         }
     }
 
     @ReactProp(name = "builtInZoomControls", defaultBoolean = false)
-    public void setBuiltInZoomControls(RNWebView view, boolean builtInZoomControls) {
-        view.getSettings().setBuiltInZoomControls(builtInZoomControls);
+    public void setBuiltInZoomControls(WebViewWithSwipeRefresh view, boolean builtInZoomControls) {
+        RNWebView webView = view.getWebView();
+        webView.getSettings().setBuiltInZoomControls(builtInZoomControls);
     }
 
     @ReactProp(name = "geolocationEnabled", defaultBoolean = false)
-    public void setGeolocationEnabled(RNWebView view, boolean geolocationEnabled) {
-        view.getSettings().setGeolocationEnabled(geolocationEnabled);
+    public void setGeolocationEnabled(WebViewWithSwipeRefresh view, boolean geolocationEnabled) {
+        RNWebView webView = view.getWebView();
+        webView.getSettings().setGeolocationEnabled(geolocationEnabled);
 
         if (geolocationEnabled) {
-            view.setWebChromeClient(view.getGeoClient());
+            webView.setWebChromeClient(webView.getGeoClient());
         } else {
-            view.setWebChromeClient(view.getCustomClient());
+            webView.setWebChromeClient(webView.getCustomClient());
         }
     }
 
     @ReactProp(name = "javaScriptEnabled", defaultBoolean = true)
-    public void setJavaScriptEnabled(RNWebView view, boolean javaScriptEnabled) {
-        view.getSettings().setJavaScriptEnabled(javaScriptEnabled);
+    public void setJavaScriptEnabled(WebViewWithSwipeRefresh view, boolean javaScriptEnabled) {
+        RNWebView webView = view.getWebView();
+        webView.getSettings().setJavaScriptEnabled(javaScriptEnabled);
     }
 
     @ReactProp(name = "userAgent")
-    public void setUserAgent(RNWebView view, @Nullable String userAgent) {
-        if (userAgent != null) view.getSettings().setUserAgentString(userAgent);
+    public void setUserAgent(WebViewWithSwipeRefresh view, @Nullable String userAgent) {
+        RNWebView webView = view.getWebView();
+        if (userAgent != null) webView.getSettings().setUserAgentString(userAgent);
     }
 
     @ReactProp(name = "url")
-    public void setUrl(RNWebView view, @Nullable String url) {
-        view.loadUrl(url, headerMap);
+    public void setUrl(WebViewWithSwipeRefresh view, @Nullable String url) {
+        RNWebView webView = view.getWebView();
+        webView.loadUrl(url, headerMap);
     }
 
     @ReactProp(name = "headers")
-    public void setHeaders(RNWebView view, @Nullable ReadableMap headers) {
+    public void setHeaders(WebViewWithSwipeRefresh view, @Nullable ReadableMap headers) {
         headerMap = new HashMap<>();
 
         ReadableMapKeySetIterator iter = headers.keySetIterator();
@@ -142,7 +150,7 @@ public class RNWebViewManager extends SimpleViewManager<RNWebView> {
     }
 
     @ReactProp(name = "source")
-    public void setSource(RNWebView view, @Nullable ReadableMap source) {
+    public void setSource(WebViewWithSwipeRefresh view, @Nullable ReadableMap source) {
         if (source != null) {
             if (source.hasKey("baseUrl")) {
                 setBaseUrl(view, source.getString("baseUrl"));
@@ -162,23 +170,27 @@ public class RNWebViewManager extends SimpleViewManager<RNWebView> {
     }
 
     @ReactProp(name = "baseUrl")
-    public void setBaseUrl(RNWebView view, @Nullable String baseUrl) {
-        view.setBaseUrl(baseUrl);
+    public void setBaseUrl(WebViewWithSwipeRefresh view, @Nullable String baseUrl) {
+        RNWebView webView = view.getWebView();
+        webView.setBaseUrl(baseUrl);
     }
 
     @ReactProp(name = "htmlCharset")
-    public void setHtmlCharset(RNWebView view, @Nullable String htmlCharset) {
-        if (htmlCharset != null) view.setCharset(htmlCharset);
+    public void setHtmlCharset(WebViewWithSwipeRefresh view, @Nullable String htmlCharset) {
+        RNWebView webView = view.getWebView();
+        if (htmlCharset != null) webView.setCharset(htmlCharset);
     }
 
     @ReactProp(name = "html")
-    public void setHtml(RNWebView view, @Nullable String html) {
-        view.loadDataWithBaseURL(view.getBaseUrl(), html, HTML_MIME_TYPE, view.getCharset(), null);
+    public void setHtml(WebViewWithSwipeRefresh view, @Nullable String html) {
+        RNWebView webView = view.getWebView();
+        webView.loadDataWithBaseURL(webView.getBaseUrl(), html, HTML_MIME_TYPE, webView.getCharset(), null);
     }
 
     @ReactProp(name = "injectedJavaScript")
-    public void setInjectedJavaScript(RNWebView view, @Nullable String injectedJavaScript) {
-        view.setInjectedJavaScript(injectedJavaScript);
+    public void setInjectedJavaScript(WebViewWithSwipeRefresh view, @Nullable String injectedJavaScript) {
+        RNWebView webView = view.getWebView();
+        webView.setInjectedJavaScript(injectedJavaScript);
     }
 
     @Override
@@ -199,25 +211,26 @@ public class RNWebViewManager extends SimpleViewManager<RNWebView> {
     }
 
     @Override
-    public void receiveCommand(RNWebView view, int commandId, @Nullable ReadableArray args) {
+    public void receiveCommand(WebViewWithSwipeRefresh view, int commandId, @Nullable ReadableArray args) {
+        RNWebView webView = view.getWebView();
         switch (commandId) {
             case GO_BACK:
-                view.goBack();
+                webView.goBack();
                 break;
             case GO_FORWARD:
-                view.goForward();
+                webView.goForward();
                 break;
             case RELOAD:
-                view.reload();
+                webView.reload();
                 break;
             case STOP_LOADING:
-                view.stopLoading();
+                webView.stopLoading();
                 break;
             case POST_MESSAGE:
                 try {
                     JSONObject eventInitDict = new JSONObject();
                     eventInitDict.put("data", args.getString(0));
-                    view.loadUrl("javascript:(function () {" +
+                    webView.loadUrl("javascript:(function () {" +
                             "var event;" +
                             "var data = " + eventInitDict.toString() + ";" +
                             "try {" +
@@ -233,14 +246,14 @@ public class RNWebViewManager extends SimpleViewManager<RNWebView> {
                 }
                 break;
             case INJECT_JAVASCRIPT:
-                view.loadUrl("javascript:" + args.getString(0));
+                webView.loadUrl("javascript:" + args.getString(0));
                 break;
             case SHOULD_OVERRIDE_WITH_RESULT:
-                view.shouldOverrideWithResult(view, args);
+                webView.shouldOverrideWithResult(webView, args);
                 break;
             case EVALUATE_JAVASCRIPT:
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                    view.evaluateJavascript(args.getString(0), null);
+                    webView.evaluateJavascript(args.getString(0), null);
                 }
                 break;
         }
@@ -256,9 +269,11 @@ public class RNWebViewManager extends SimpleViewManager<RNWebView> {
     }
 
     @Override
-    public void onDropViewInstance(RNWebView webView) {
-        super.onDropViewInstance(webView);
+    public void onDropViewInstance(WebViewWithSwipeRefresh view) {
+        super.onDropViewInstance(view);
 
-        ((ThemedReactContext) webView.getContext()).removeLifecycleEventListener(webView);
+        RNWebView webView = view.getWebView();
+        ((ThemedReactContext) webView.getContext())
+                .removeLifecycleEventListener(webView);
     }
 }
