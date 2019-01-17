@@ -13,6 +13,7 @@ import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -72,9 +73,16 @@ class RNWebView extends WebView implements LifecycleEventListener {
 
         @Override
         public void onReceivedError(WebView view, WebResourceRequest request, final WebResourceError error) {
-            super.onReceivedError(view, request, error);
+            // This callback happens for errors of any resource, not just the main page.
+            if (request.isForMainFrame()) {
+                mEventDispatcher.dispatchEvent(new ErrorEvent(parentForDispatchId.getId(), error));
+                // If we are using custom error handling in the react native code, there's a 200ms flash
+                // of the standard error screen before the custom error shows.
+                // This line will (usually) hide the flash.
+                view.loadUrl("about:blank");
+            }
 
-            mEventDispatcher.dispatchEvent(new ErrorEvent(parentForDispatchId.getId(), error));
+            super.onReceivedError(view, request, error);
         }
 
         public void onPageFinished(WebView view, String url) {
