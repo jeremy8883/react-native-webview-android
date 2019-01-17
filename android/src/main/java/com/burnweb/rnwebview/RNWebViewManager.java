@@ -265,6 +265,7 @@ public class RNWebViewManager extends SimpleViewManager<WebViewWithSwipeRefresh>
                 .put(NavigationStateChangeEvent.EVENT_NAME, MapBuilder.of("registrationName", "onNavigationStateChange"))
                 .put(MessageEvent.EVENT_NAME, MapBuilder.of("registrationName", "onMessageEvent"))
                 .put(ShouldOverrideUrlLoadingEvent.EVENT_NAME, MapBuilder.of("registrationName", "onShouldOverrideUrlLoading"))
+                .put(ErrorEvent.EVENT_NAME, MapBuilder.of("registrationName", "onError"))
                 .build();
     }
 

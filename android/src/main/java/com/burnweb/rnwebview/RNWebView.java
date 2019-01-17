@@ -11,11 +11,15 @@ import android.webkit.JavascriptInterface;
 import android.webkit.JsResult;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceError;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
+import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.common.SystemClock;
 import com.facebook.react.bridge.LifecycleEventListener;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -64,6 +68,13 @@ class RNWebView extends WebView implements LifecycleEventListener {
             );
 
             return true;
+        }
+
+        @Override
+        public void onReceivedError(WebView view, WebResourceRequest request, final WebResourceError error) {
+            super.onReceivedError(view, request, error);
+
+            mEventDispatcher.dispatchEvent(new ErrorEvent(parentForDispatchId.getId(), error));
         }
 
         public void onPageFinished(WebView view, String url) {
